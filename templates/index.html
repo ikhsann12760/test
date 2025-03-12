@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plagiarism Check</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+body {
+    background: linear-gradient(to bottom, #0f1d51, #1d3bc9);
+    font-family: 'Poppins', sans-serif;
+    color: white;
+    margin: 0;
+    padding: 0;
+    height: 100vh;;
+}
+
+/* Header untuk teks dan logo */
+.header {
+    position: absolute;  /* Menempel di atas */
+    top: 10px;
+    left: 20px;
+    display: flex;
+    align-items: center;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+/* Gaya untuk logo */
+.logo {
+    height: 60px;
+    margin-right: 10px;
+}
+
+/* Container dengan efek shadow dan warna lebih soft */
+.container {
+    max-width: 600px;
+    margin: 40px auto;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transition: 0.3s;
+}
+
+/* Input file lebih rapat */
+.form-control {
+    max-width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+}
+
+/* Judul lebih kecil dan rapat */
+h2 {
+    text-align: center;
+    color: #333;
+    font-weight: 700;
+    margin-bottom: 15px;
+}
+
+/* Label lebih jelas */
+.form-label {
+    font-weight: bold;
+    color: #555;
+    margin-bottom: 5px;
+}
+
+/* Tombol dengan warna kuning */
+.btn-primary {
+    background: #F4C542;
+    border: none;
+    padding: 10px 15px;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 8px;
+    transition: 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #333; /* Warna teks lebih kontras */
+}
+
+.btn-primary:hover {
+    background: #e0b235;
+}
+
+/* Peringatan lebih kecil */
+.alert {
+    text-align: center;
+    font-size: 16px;
+    padding: 8px;
+}
+
+/* Container chart lebih rapat */
+.chart-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 10px;
+}
+
+/* Warna chart lebih soft */
+canvas {
+    max-width: 250px;
+}
+
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>
+            <img src="{{ url_for('static', filename='favicon.png') }}" alt="Favicon" width="30">
+            Plagiarism Checker
+         </h2>
+        <form action="/" method="post" enctype="multipart/form-data" id="compareForm">
+            <div class="mb-3">
+                <label for="file" class="form-label">Unggah File</label>
+                <input type="file" class="form-control" name="file" id="fileInput" required>
+                <div id="errorMessage" class="alert alert-danger mt-2" style="display: none;"></div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100" id="compareButton">
+                <span id="buttonText">🚀 Presentasekan</span>
+            </button>
+        </form>
+
+        {% if similarity is not none %}
+            <div class="alert alert-info mt-3">
+                <div class="chart-container">
+                    <canvas id="resultChart"></canvas>
+                </div>
+                <p><strong>AI-generated:</strong> {{ similarity|round(2) }}%</p>
+                <p><strong>Human-generated:</strong> {{ (100 - similarity)|round(2) }}%</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="header">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
+        <span>Plagiarism Chek</span>
+    </div>
+
+
+    <canvas id="resultChart" width="300" height="300"></canvas>
+
+    <script>
+        $(document).ready(function() {
+            $("#compareForm").submit(function(event) {
+                let fileInput = $("#fileInput")[0].files[0];
+
+                if (!fileInput) {
+                    showError("Harap pilih file untuk diunggah.");
+                    event.preventDefault();
+                    return;
+                }
+
+                let allowedExtensions = ["pdf", "docx"];
+                let fileExt = fileInput.name.split('.').pop().toLowerCase();
+
+                if (!allowedExtensions.includes(fileExt)) {
+                    showError("Format file tidak didukung! Hanya PDF atau DOCX yang diperbolehkan.");
+                    event.preventDefault();
+                    return;
+                }
+
+                $("#compareButton").prop("disabled", true);
+                $("#buttonText").text("🔄 Memproses...");
+            });
+
+            function showError(message) {
+                $("#errorMessage").text(message).fadeIn();
+                setTimeout(function() {
+                    $("#errorMessage").fadeOut();
+                }, 5000);
+            }
+
+            {% if similarity is not none %}
+            let ctx = document.getElementById("resultChart").getContext("2d");
+            new Chart(ctx, {
+                type: "doughnut",
+                data: {
+                    labels: ["AI-generated", "Human-generated"],
+                    datasets: [{
+                        data: [{{ similarity|round(2) }}, {{ (100 - similarity)|round(2) }}],
+                        backgroundColor: ["#ff6384", "#36a2eb"],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+            {% endif %}
+        });
+
+       
+
+    var similarity = {{ similarity | default(0) }};
+    var classification = "{{ classification | default('N/A') }}";
+
+    var ctx = document.getElementById("resultChart").getContext("2d");
+    var chart = new Chart(ctx, {
+        type: "doughnut",
+        data: {
+            labels: ["Plagiarism (%)", "Original (%)"],
+            datasets: [{
+                data: [similarity, 100 - similarity],
+                backgroundColor: ["red", "blue"]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false  // Biarkan diagram fleksibel
+        }
+    });
+
+    document.getElementById("aiResult").innerText = "AI Classification: " + classification;
+    </script>
+</body>
+</html>
